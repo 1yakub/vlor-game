@@ -1,105 +1,48 @@
-# Varygen: Lords of Resolution (V:LoR)
+# Varygen: Lords of Resolution
 
-A multiplayer business simulation and social deduction game where players navigate corporate politics, resolve conflicts, and manage hidden agendas within the prestigious Varygen Corporation.
+A multiplayer business simulation game where players navigate corporate conflicts through mediation and negotiation.
 
-## Features
+## Development Stream
 
-- 🎮 Real-time multiplayer gameplay
-- 💼 Business simulation mechanics
-- 🤝 Conflict resolution system
-- 🕵️ Hidden role mechanics (Mafia system)
-- 💰 Dynamic economy system
-- 🏢 Virtual office environment
+Watch the live development process on YouTube: [Varygen Development Stream](https://www.youtube.com/live/3Dv8ZLa2MOw)
 
-## Tech Stack
+## About the Game
 
-- Python 3.8+
-- Pygame (Game engine)
-- FastAPI (Server)
-- Socket.IO (Real-time communication)
-- SQLAlchemy (Database ORM)
-- Pytest (Testing)
+In Varygen: Lords of Resolution, players take on various roles:
+- Mediators (Rupok & Shoron) who help resolve conflicts
+- Businesspeople managing their enterprises
+- Mafia members adding complexity to negotiations
 
-## Development Setup
+The game features:
+- Real-time multiplayer interaction
+- Office environment with multiple rooms and areas
+- Business management mechanics
+- Conflict resolution systems
+- Dynamic economy
 
-1. Clone the repository:
-```bash
-git clone [repository-url]
-cd vlor-game
-```
+## Development Status
 
-2. Create and activate virtual environment:
-```bash
-python -m venv venv
-source venv/bin/activate  # Linux/Mac
-# or
-venv\Scripts\activate     # Windows
-```
+Currently implementing:
+- ✅ Core game engine
+- ✅ Office environment and tilemap system
+- ✅ Basic player movement and collision
+- 🔄 Character sprites and animations
+- 🔄 UI system
+- 📅 Business mechanics
+- 📅 Networking
 
-3. Install dependencies:
-```bash
-pip install -r requirements.txt
-```
+## Getting Started
 
-4. Run the development server:
-```bash
-python src/server/app.py
-```
+1. Clone the repository
+2. Install dependencies: `pip install -r requirements.txt`
+3. Run the game: `python src/main.py`
 
-5. In a new terminal, run the client:
-```bash
-python src/client/game.py
-```
+## Controls
 
-## Project Structure
-
-```
-vlor/
-├── src/
-│   ├── client/         # Client-side game code
-│   │   ├── ui/         # User interface components
-│   │   ├── game.py     # Main game loop
-│   │   └── player.py   # Player entity
-│   ├── server/         # Server-side code
-│   │   ├── game_logic/ # Game mechanics
-│   │   ├── networking/ # Socket.IO handling
-│   │   └── database/   # Data models
-│   └── shared/         # Shared utilities
-├── assets/             # Game resources
-│   ├── sprites/        # Character sprites
-│   ├── maps/          # Level layouts
-│   └── sounds/        # Audio files
-├── tests/             # Test suites
-├── docs/              # Documentation
-└── requirements.txt   # Dependencies
-```
+- Movement: WASD or Arrow keys
+- Interact: E
+- Menu: ESC
 
 ## Contributing
 
-1. Fork the repository
-2. Create your feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
-
-## Testing
-
-Run the test suite:
-```bash
-pytest
-```
-
-Run with coverage:
-```bash
-pytest --cov=src tests/
-```
-
-## License
-
-This project is licensed under the MIT License - see the LICENSE file for details.
-
-## Acknowledgments
-
-- Game design inspired by social deduction games
-- Built with Python and Pygame
-- Developed using Cursor IDE
+Feel free to watch the development process on our [livestream](https://www.youtube.com/live/3Dv8ZLa2MOw) and contribute to the project!
