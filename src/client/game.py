@@ -18,6 +18,7 @@ from shared.constants import (
 )
 from shared.logger import get_logger
 from client.player import Player
+from client.tilemap import create_test_map
 
 logger = get_logger(__name__)
 
@@ -36,6 +37,9 @@ class Game:
         
         # Create UI manager
         self.ui_manager = pygame_gui.UIManager((WINDOW_WIDTH, WINDOW_HEIGHT))
+        
+        # Create tilemap
+        self.tilemap = create_test_map()
         
         # Create player at center of screen
         self.player = Player(
@@ -65,18 +69,39 @@ class Game:
         Args:
             delta_time: Time elapsed since last update in seconds
         """
+        # Store old position for collision checking
+        old_pos = self.player.position.copy()
+        
         # Handle player input and update
         keys = pygame.key.get_pressed()
         self.player.handle_input(keys)
         self.player.update(delta_time)
         
+        # Check for collisions with tilemap
+        if self.tilemap.check_collision(self.player.rect):
+            # If collision occurred, revert to old position
+            self.player.position = old_pos
+            self.player.rect.center = old_pos
+        
         # Update UI
         self.ui_manager.update(delta_time)
+        
+        # Log room changes for debugging
+        current_room = self.tilemap.get_room_at(self.player.position)
+        if hasattr(self, '_last_room') and self._last_room != current_room:
+            if current_room:
+                logger.debug(f"Entered room: {current_room}")
+            else:
+                logger.debug("Left room")
+        self._last_room = current_room
     
     def render(self):
         """Render the game state to the screen."""
         # Clear the screen
         self.screen.fill(COLOR_WHITE)
+        
+        # Draw the tilemap
+        self.tilemap.draw(self.screen)
         
         # Draw the player
         self.player.draw(self.screen)
