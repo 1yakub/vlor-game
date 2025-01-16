@@ -16,12 +16,16 @@ from shared.constants import (
     COLOR_WHITE,
     COLOR_BLACK,
     GameState,
-    ASSET_DIR
+    ASSET_DIR,
+    BusinessType,
+    PlayerRole
 )
 from shared.logger import get_logger
 from client.player import Player
 from client.tilemap import create_test_map
 from client.ui.menu import MenuManager
+from client.ui.business import BusinessPanel
+from client.business import BusinessManager
 
 logger = get_logger(__name__)
 
@@ -57,8 +61,12 @@ class Game:
         # Game state
         self.state = GameState.MENU
         
-        # Create menu manager
+        # Create managers
         self.menu_manager = MenuManager(self.ui_manager)
+        self.business_manager = BusinessManager()
+        
+        # Create UI panels
+        self.business_panel = BusinessPanel(self.ui_manager)
         
         # Create tilemap
         self.tilemap = create_test_map()
@@ -68,7 +76,42 @@ class Game:
             position=Vector2(WINDOW_WIDTH // 2, WINDOW_HEIGHT // 2)
         )
         
+        # Create test businesses
+        self._create_test_businesses()
+        
         logger.info("Game initialized successfully")
+    
+    def _create_test_businesses(self):
+        """Create test businesses for development."""
+        # Create a retail business
+        retail = self.business_manager.create_business(
+            name="Varygen Mart",
+            type=BusinessType.RETAIL,
+            owner="Player1"
+        )
+        retail.add_resource("Electronics", 100, 50.0)
+        retail.add_resource("Furniture", 50, 200.0)
+        
+        # Create a manufacturing business
+        manufacturing = self.business_manager.create_business(
+            name="Varygen Industries",
+            type=BusinessType.MANUFACTURING,
+            owner="Player2"
+        )
+        manufacturing.add_resource("Raw Materials", 500, 20.0)
+        manufacturing.add_resource("Machinery", 10, 1000.0)
+        
+        # Create a test contract
+        self.business_manager.create_contract(
+            seller=manufacturing,
+            buyer=retail,
+            resource="Raw Materials",
+            quantity=50,
+            price=1500.0
+        )
+        
+        # Show the retail business panel for testing
+        self.business_panel.show(retail)
     
     def handle_events(self):
         """Handle all game events."""
@@ -79,6 +122,7 @@ class Game:
             # Handle UI events
             self.ui_manager.process_events(event)
             self.menu_manager.handle_event(event)
+            self.business_panel.handle_event(event)
             
             # Handle keyboard input
             if event.type == pygame.KEYDOWN:
@@ -89,6 +133,14 @@ class Game:
                     elif self.state == GameState.PAUSED:
                         self.state = GameState.PLAYING
                         self.menu_manager.show_state(GameState.PLAYING)
+                elif event.key == pygame.K_b and self.state == GameState.PLAYING:
+                    # Toggle business panel
+                    if self.business_panel.visible:
+                        self.business_panel.hide()
+                    else:
+                        # Show panel for first business (for testing)
+                        first_business = next(iter(self.business_manager.businesses.values()))
+                        self.business_panel.show(first_business)
     
     def update(self, delta_time: float):
         """Update game state.
@@ -123,6 +175,13 @@ class Game:
                 else:
                     logger.debug("Left room")
             self._last_room = current_room
+            
+            # Update business system
+            self.business_manager.update(delta_time)
+            
+            # Update business panel if visible
+            if self.business_panel.visible:
+                self.business_panel.update_display()
     
     def render(self):
         """Render the game state to the screen."""
