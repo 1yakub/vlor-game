@@ -216,15 +216,15 @@ class TileMap:
                     tile.draw(screen)
 
 def create_test_map() -> TileMap:
-    """Create a test map for development.
+    """Create a corporate office layout.
     
     Returns:
-        TileMap with a basic office layout
+        TileMap with a detailed office environment
     """
-    # Create a 20x15 tile map
-    tilemap = TileMap(20, 15)
+    # Create a 30x20 tile map for a larger office
+    tilemap = TileMap(30, 20)
     
-    # Add floor tiles
+    # Fill entire map with floor tiles
     for y in range(tilemap.height):
         for x in range(tilemap.width):
             tile = Tile(
@@ -233,54 +233,68 @@ def create_test_map() -> TileMap:
             )
             tilemap.set_tile(x, y, tile)
     
-    # Add walls around the edges
+    # Add outer walls
     for x in range(tilemap.width):
-        # Top wall
-        tilemap.set_tile(x, 0, Tile(
-            TileType.WALL,
-            Vector2(x * TILE_SIZE, 0),
-            collidable=True
-        ))
-        # Bottom wall
-        tilemap.set_tile(x, tilemap.height - 1, Tile(
-            TileType.WALL,
-            Vector2(x * TILE_SIZE, (tilemap.height - 1) * TILE_SIZE),
-            collidable=True
-        ))
-    
+        tilemap.set_tile(x, 0, Tile(TileType.WALL, Vector2(x * TILE_SIZE, 0), collidable=True))
+        tilemap.set_tile(x, tilemap.height-1, Tile(TileType.WALL, Vector2(x * TILE_SIZE, (tilemap.height-1) * TILE_SIZE), collidable=True))
     for y in range(tilemap.height):
-        # Left wall
-        tilemap.set_tile(0, y, Tile(
-            TileType.WALL,
-            Vector2(0, y * TILE_SIZE),
-            collidable=True
-        ))
-        # Right wall
-        tilemap.set_tile(tilemap.width - 1, y, Tile(
-            TileType.WALL,
-            Vector2((tilemap.width - 1) * TILE_SIZE, y * TILE_SIZE),
-            collidable=True
-        ))
+        tilemap.set_tile(0, y, Tile(TileType.WALL, Vector2(0, y * TILE_SIZE), collidable=True))
+        tilemap.set_tile(tilemap.width-1, y, Tile(TileType.WALL, Vector2((tilemap.width-1) * TILE_SIZE, y * TILE_SIZE), collidable=True))
     
-    # Add some office furniture
-    # Desk
-    tilemap.set_tile(5, 5, Tile(
-        TileType.DESK,
-        Vector2(5 * TILE_SIZE, 5 * TILE_SIZE),
-        collidable=True
-    ))
-    # Chair
-    tilemap.set_tile(5, 6, Tile(
-        TileType.CHAIR,
-        Vector2(5 * TILE_SIZE, 6 * TILE_SIZE)
-    ))
+    # Create main corridor (horizontal)
+    corridor_y = tilemap.height // 2
     
-    # Define some rooms
-    tilemap.add_room("main_office", pygame.Rect(
-        TILE_SIZE,
-        TILE_SIZE,
-        (tilemap.width - 2) * TILE_SIZE,
-        (tilemap.height - 2) * TILE_SIZE
-    ))
+    # Add walls for the corridor
+    for x in range(1, tilemap.width-1):
+        if x not in [7, 15, 22]:  # Door positions
+            tilemap.set_tile(x, corridor_y-3, Tile(TileType.WALL, Vector2(x * TILE_SIZE, (corridor_y-3) * TILE_SIZE), collidable=True))
+            tilemap.set_tile(x, corridor_y+3, Tile(TileType.WALL, Vector2(x * TILE_SIZE, (corridor_y+3) * TILE_SIZE), collidable=True))
+    
+    # Add doors
+    door_positions = [(7, corridor_y-3), (15, corridor_y-3), (22, corridor_y-3),
+                     (7, corridor_y+3), (15, corridor_y+3), (22, corridor_y+3)]
+    for x, y in door_positions:
+        tilemap.set_tile(x, y, Tile(TileType.DOOR, Vector2(x * TILE_SIZE, y * TILE_SIZE)))
+    
+    # Create offices
+    office_layouts = [
+        # Upper offices
+        (2, 2, 5, 7), (9, 2, 13, 7), (16, 2, 20, 7), (23, 2, 27, 7),
+        # Lower offices
+        (2, 13, 5, 17), (9, 13, 13, 17), (16, 13, 20, 17), (23, 13, 27, 17)
+    ]
+    
+    for start_x, start_y, end_x, end_y in office_layouts:
+        # Add desks and chairs
+        desk_x = (start_x + end_x) // 2
+        desk_y = (start_y + end_y) // 2
+        
+        tilemap.set_tile(desk_x, desk_y, Tile(TileType.DESK, Vector2(desk_x * TILE_SIZE, desk_y * TILE_SIZE), collidable=True))
+        tilemap.set_tile(desk_x, desk_y+1, Tile(TileType.CHAIR, Vector2(desk_x * TILE_SIZE, (desk_y+1) * TILE_SIZE)))
+        
+        # Add plants for decoration
+        tilemap.set_tile(start_x+1, start_y+1, Tile(TileType.PLANT, Vector2((start_x+1) * TILE_SIZE, (start_y+1) * TILE_SIZE), collidable=True))
+        
+        # Add windows on outer walls
+        if start_y == 2:  # Upper offices
+            tilemap.set_tile(desk_x, start_y, Tile(TileType.WINDOW, Vector2(desk_x * TILE_SIZE, start_y * TILE_SIZE)))
+        if start_y == 13:  # Lower offices
+            tilemap.set_tile(desk_x, end_y, Tile(TileType.WINDOW, Vector2(desk_x * TILE_SIZE, end_y * TILE_SIZE)))
+    
+    # Define rooms
+    room_definitions = [
+        ("office_1", pygame.Rect(2*TILE_SIZE, 2*TILE_SIZE, 5*TILE_SIZE, 5*TILE_SIZE)),
+        ("office_2", pygame.Rect(9*TILE_SIZE, 2*TILE_SIZE, 5*TILE_SIZE, 5*TILE_SIZE)),
+        ("office_3", pygame.Rect(16*TILE_SIZE, 2*TILE_SIZE, 5*TILE_SIZE, 5*TILE_SIZE)),
+        ("office_4", pygame.Rect(23*TILE_SIZE, 2*TILE_SIZE, 5*TILE_SIZE, 5*TILE_SIZE)),
+        ("office_5", pygame.Rect(2*TILE_SIZE, 13*TILE_SIZE, 5*TILE_SIZE, 5*TILE_SIZE)),
+        ("office_6", pygame.Rect(9*TILE_SIZE, 13*TILE_SIZE, 5*TILE_SIZE, 5*TILE_SIZE)),
+        ("office_7", pygame.Rect(16*TILE_SIZE, 13*TILE_SIZE, 5*TILE_SIZE, 5*TILE_SIZE)),
+        ("office_8", pygame.Rect(23*TILE_SIZE, 13*TILE_SIZE, 5*TILE_SIZE, 5*TILE_SIZE)),
+        ("main_corridor", pygame.Rect(TILE_SIZE, (corridor_y-2)*TILE_SIZE, (tilemap.width-2)*TILE_SIZE, 5*TILE_SIZE))
+    ]
+    
+    for name, rect in room_definitions:
+        tilemap.add_room(name, rect)
     
     return tilemap 

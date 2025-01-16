@@ -1,86 +1,67 @@
-"""Player module.
+"""Player module for handling the player entity."""
 
-This module handles player-related functionality including movement,
-rendering, and state management.
-"""
-
-from typing import Optional, Tuple
 import pygame
 from pygame.math import Vector2
+
 from shared.constants import (
     PLAYER_SIZE,
     PLAYER_SPEED,
-    COLOR_BLACK,
-    WINDOW_WIDTH,
-    WINDOW_HEIGHT
+    COLOR_BLACK
 )
 
 class Player:
-    """Player class representing a game character.
+    """Player entity class.
     
     Attributes:
-        position: Current position in the game world
+        position: Current position in world coordinates
         velocity: Current movement velocity
-        sprite: Player's visual representation (optional)
+        rect: Collision rectangle
+        color: Player color (temporary until sprites)
     """
     
     def __init__(
         self,
         position: Vector2,
-        sprite_path: Optional[str] = None,
-        color: Tuple[int, int, int] = COLOR_BLACK
+        color: tuple[int, int, int] = COLOR_BLACK
     ):
         """Initialize the player.
         
         Args:
             position: Starting position
-            sprite_path: Path to sprite image (optional)
-            color: Fallback color if no sprite is provided
+            color: RGB color tuple
         """
         self.position = position
         self.velocity = Vector2(0, 0)
         self.color = color
-        self.sprite = None
+        
+        # Create collision rectangle
         self.rect = pygame.Rect(
-            position.x - PLAYER_SIZE.x // 2,
-            position.y - PLAYER_SIZE.y // 2,
-            PLAYER_SIZE.x,
-            PLAYER_SIZE.y
+            position.x - PLAYER_SIZE // 2,
+            position.y - PLAYER_SIZE // 2,
+            PLAYER_SIZE,
+            PLAYER_SIZE
         )
-        
-        if sprite_path:
-            self._load_sprite(sprite_path)
     
-    def _load_sprite(self, sprite_path: str) -> None:
-        """Load the player sprite from file.
+    def handle_input(self, keys: dict) -> None:
+        """Handle keyboard input for movement.
         
         Args:
-            sprite_path: Path to sprite image
+            keys: Dictionary of keyboard state
         """
-        try:
-            self.sprite = pygame.image.load(sprite_path).convert_alpha()
-            self.sprite = pygame.transform.scale(self.sprite, PLAYER_SIZE)
-        except pygame.error as e:
-            print(f"Could not load sprite: {e}")
-    
-    def handle_input(self, keys) -> None:
-        """Handle keyboard input for player movement.
-        
-        Args:
-            keys: Pygame key state dictionary
-        """
+        # Reset velocity
         self.velocity = Vector2(0, 0)
         
+        # Handle movement keys
         if keys[pygame.K_LEFT] or keys[pygame.K_a]:
-            self.velocity.x = -1
+            self.velocity.x = -PLAYER_SPEED
         if keys[pygame.K_RIGHT] or keys[pygame.K_d]:
-            self.velocity.x = 1
+            self.velocity.x = PLAYER_SPEED
         if keys[pygame.K_UP] or keys[pygame.K_w]:
-            self.velocity.y = -1
+            self.velocity.y = -PLAYER_SPEED
         if keys[pygame.K_DOWN] or keys[pygame.K_s]:
-            self.velocity.y = 1
-        
-        # Normalize velocity for consistent movement speed
+            self.velocity.y = PLAYER_SPEED
+            
+        # Normalize diagonal movement
         if self.velocity.length() > 0:
             self.velocity = self.velocity.normalize() * PLAYER_SPEED
     
@@ -90,24 +71,16 @@ class Player:
         Args:
             delta_time: Time elapsed since last update
         """
-        # Update position
-        movement = self.velocity * delta_time
-        new_pos = self.position + movement
+        # Update position based on velocity
+        self.position += self.velocity * delta_time
         
-        # Keep player within screen bounds
-        new_pos.x = max(PLAYER_SIZE.x // 2, min(new_pos.x, WINDOW_WIDTH - PLAYER_SIZE.x // 2))
-        new_pos.y = max(PLAYER_SIZE.y // 2, min(new_pos.y, WINDOW_HEIGHT - PLAYER_SIZE.y // 2))
-        
-        self.position = new_pos
+        # Update collision rect
         self.rect.center = self.position
     
     def draw(self, screen: pygame.Surface) -> None:
-        """Draw the player to the screen.
+        """Draw the player.
         
         Args:
-            screen: Pygame surface to draw on
+            screen: Surface to draw on
         """
-        if self.sprite:
-            screen.blit(self.sprite, self.rect)
-        else:
-            pygame.draw.rect(screen, self.color, self.rect) 
+        pygame.draw.rect(screen, self.color, self.rect) 

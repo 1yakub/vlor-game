@@ -7,22 +7,20 @@ from enum import Enum, auto
 from pygame.math import Vector2
 
 
-# Window Constants
-WINDOW_WIDTH = 1280
-WINDOW_HEIGHT = 720
+# Window settings
+TILE_SIZE = 32
+WINDOW_WIDTH = 30 * TILE_SIZE  # 960 pixels
+WINDOW_HEIGHT = 20 * TILE_SIZE  # 640 pixels
 WINDOW_TITLE = "Varygen: Lords of Resolution"
 
-# Colors (RGB)
-COLOR_BLACK = (0, 0, 0)
+# Colors
 COLOR_WHITE = (255, 255, 255)
-COLOR_RED = (255, 0, 0)
-COLOR_GREEN = (0, 255, 0)
-COLOR_BLUE = (0, 0, 255)
+COLOR_BLACK = (0, 0, 0)
 COLOR_GRAY = (128, 128, 128)
 
-# Player Constants
-PLAYER_SIZE = Vector2(32, 32)
-PLAYER_SPEED = 5.0
+# Player settings
+PLAYER_SIZE = 24
+PLAYER_SPEED = 200  # pixels per second
 PLAYER_COLLISION_RADIUS = 16
 
 # Game States
