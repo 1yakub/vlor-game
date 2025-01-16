@@ -14,11 +14,14 @@ from shared.constants import (
     WINDOW_HEIGHT,
     WINDOW_TITLE,
     COLOR_WHITE,
-    COLOR_BLACK
+    COLOR_BLACK,
+    GameState,
+    ASSET_DIR
 )
 from shared.logger import get_logger
 from client.player import Player
 from client.tilemap import create_test_map
+from client.ui.menu import MenuManager
 
 logger = get_logger(__name__)
 
@@ -35,16 +38,23 @@ class Game:
         self.clock = pygame.time.Clock()
         self.is_running = True
         
-        # Create UI manager
-        self.ui_manager = pygame_gui.UIManager((WINDOW_WIDTH, WINDOW_HEIGHT))
+        # Create UI manager with theme
+        theme_path = ASSET_DIR / "theme.json"
+        self.ui_manager = pygame_gui.UIManager(
+            (WINDOW_WIDTH, WINDOW_HEIGHT),
+            theme_path if theme_path.exists() else None
+        )
+        self.menu_manager = MenuManager(self.ui_manager)
+        
+        # Game state
+        self.state = GameState.MENU
         
         # Create tilemap
         self.tilemap = create_test_map()
         
         # Create player at center of screen
         self.player = Player(
-            position=Vector2(WINDOW_WIDTH // 2, WINDOW_HEIGHT // 2),
-            color=COLOR_BLACK
+            position=Vector2(WINDOW_WIDTH // 2, WINDOW_HEIGHT // 2)
         )
         
         logger.info("Game initialized successfully")
@@ -57,11 +67,17 @@ class Game:
             
             # Handle UI events
             self.ui_manager.process_events(event)
+            self.menu_manager.handle_event(event)
             
             # Handle keyboard input
             if event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_ESCAPE:
-                    self.is_running = False
+                    if self.state == GameState.PLAYING:
+                        self.state = GameState.PAUSED
+                        self.menu_manager.show_state(GameState.PAUSED)
+                    elif self.state == GameState.PAUSED:
+                        self.state = GameState.PLAYING
+                        self.menu_manager.show_state(GameState.PLAYING)
     
     def update(self, delta_time: float):
         """Update game state.
@@ -69,42 +85,46 @@ class Game:
         Args:
             delta_time: Time elapsed since last update in seconds
         """
-        # Store old position for collision checking
-        old_pos = self.player.position.copy()
-        
-        # Handle player input and update
-        keys = pygame.key.get_pressed()
-        self.player.handle_input(keys)
-        self.player.update(delta_time)
-        
-        # Check for collisions with tilemap
-        if self.tilemap.check_collision(self.player.rect):
-            # If collision occurred, revert to old position
-            self.player.position = old_pos
-            self.player.rect.center = old_pos
-        
         # Update UI
         self.ui_manager.update(delta_time)
         
-        # Log room changes for debugging
-        current_room = self.tilemap.get_room_at(self.player.position)
-        if hasattr(self, '_last_room') and self._last_room != current_room:
-            if current_room:
-                logger.debug(f"Entered room: {current_room}")
-            else:
-                logger.debug("Left room")
-        self._last_room = current_room
+        # Only update game logic when playing
+        if self.state == GameState.PLAYING:
+            # Store old position for collision checking
+            old_pos = self.player.position.copy()
+            
+            # Handle player input and update
+            keys = pygame.key.get_pressed()
+            self.player.handle_input(keys)
+            self.player.update(delta_time)
+            
+            # Check for collisions with tilemap
+            if self.tilemap.check_collision(self.player.rect):
+                # If collision occurred, revert to old position
+                self.player.position = old_pos
+                self.player.rect.center = old_pos
+            
+            # Log room changes for debugging
+            current_room = self.tilemap.get_room_at(self.player.position)
+            if hasattr(self, '_last_room') and self._last_room != current_room:
+                if current_room:
+                    logger.debug(f"Entered room: {current_room}")
+                else:
+                    logger.debug("Left room")
+            self._last_room = current_room
     
     def render(self):
         """Render the game state to the screen."""
         # Clear the screen
         self.screen.fill(COLOR_WHITE)
         
-        # Draw the tilemap
-        self.tilemap.draw(self.screen)
-        
-        # Draw the player
-        self.player.draw(self.screen)
+        # Only render game world when playing or paused
+        if self.state in [GameState.PLAYING, GameState.PAUSED]:
+            # Draw the tilemap
+            self.tilemap.draw(self.screen)
+            
+            # Draw the player
+            self.player.draw(self.screen)
         
         # Draw UI
         self.ui_manager.draw_ui(self.screen)
