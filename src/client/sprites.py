@@ -11,6 +11,9 @@ from shared.constants import (
     ANIMATION_FRAME_RATE,
     PlayerRole
 )
+from shared.logger import get_logger
+
+logger = get_logger(__name__)
 
 class Direction(Enum):
     """Character facing directions."""
@@ -47,19 +50,23 @@ class SpriteManager:
     def _load_sprites(self) -> None:
         """Load sprite sheets for all player roles."""
         sprite_paths = {
-            PlayerRole.MEDIATOR_RUPOK: f"{SPRITE_PATH}/rupok.png",
-            PlayerRole.MEDIATOR_SHORON: f"{SPRITE_PATH}/shoron.png",
-            PlayerRole.BUSINESSMAN: f"{SPRITE_PATH}/businessman.png",
-            PlayerRole.MAFIA: f"{SPRITE_PATH}/mafia.png"
+            PlayerRole.MEDIATOR_RUPOK: SPRITE_PATH / "rupok.png",
+            PlayerRole.MEDIATOR_SHORON: SPRITE_PATH / "shoron.png",
+            PlayerRole.BUSINESSMAN: SPRITE_PATH / "businessman.png",
+            PlayerRole.MAFIA: SPRITE_PATH / "mafia.png"
         }
         
         for role, path in sprite_paths.items():
             try:
-                sprite_sheet = pygame.image.load(path).convert_alpha()
-                self.sprites[role] = sprite_sheet
-            except pygame.error as e:
-                print(f"Could not load sprite for {role}: {e}")
-                # Create a colored rectangle as fallback
+                if path.exists():
+                    sprite_sheet = pygame.image.load(str(path)).convert_alpha()
+                    self.sprites[role] = sprite_sheet
+                else:
+                    logger.warning(f"Sprite file not found for {role}: {path}")
+                    fallback = self._create_fallback_sprite(role)
+                    self.sprites[role] = fallback
+            except (pygame.error, IOError) as e:
+                logger.error(f"Error loading sprite for {role}: {e}")
                 fallback = self._create_fallback_sprite(role)
                 self.sprites[role] = fallback
     

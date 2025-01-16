@@ -4,8 +4,7 @@ This module defines constant values and enumerations used throughout the game.
 """
 
 from enum import Enum, auto
-from pygame.math import Vector2
-
+from pathlib import Path
 
 # Window settings
 TILE_SIZE = 32
@@ -21,7 +20,15 @@ COLOR_GRAY = (128, 128, 128)
 # Player settings
 PLAYER_SIZE = 24
 PLAYER_SPEED = 200  # pixels per second
-PLAYER_COLLISION_RADIUS = 16
+
+# Animation settings
+ANIMATION_FRAME_RATE = 8  # frames per second
+
+# Asset paths
+ASSET_DIR = Path("assets")
+SPRITE_PATH = ASSET_DIR / "sprites"
+SOUND_PATH = ASSET_DIR / "sounds"
+MAP_PATH = ASSET_DIR / "maps"
 
 # Game States
 class GameState(Enum):
@@ -82,12 +89,6 @@ class NetworkEvent(Enum):
     PLAYER_UPDATE = "player_update"
     CHAT_MESSAGE = "chat_message"
     ERROR = "error"
-
-# Asset Paths
-ASSET_PATH = "assets"
-SPRITE_PATH = f"{ASSET_PATH}/sprites"
-SOUND_PATH = f"{ASSET_PATH}/sounds"
-MAP_PATH = f"{ASSET_PATH}/maps"
 
 # UI Constants
 UI_FONT = "Arial"
