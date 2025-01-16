@@ -18,13 +18,17 @@ from shared.constants import (
     GameState,
     ASSET_DIR,
     BusinessType,
-    PlayerRole
+    PlayerRole,
+    ConflictType,
+    TILE_SIZE
 )
 from shared.logger import get_logger
 from client.player import Player
 from client.tilemap import create_test_map
 from client.ui.menu import MenuManager
 from client.ui.business import BusinessPanel
+from client.ui.trading import TradingPanel
+from client.ui.mediation import MediationPanel
 from client.business import BusinessManager
 
 logger = get_logger(__name__)
@@ -32,8 +36,15 @@ logger = get_logger(__name__)
 class Game:
     """Main game class handling the game loop and core functionality."""
     
+    # Singleton instance
+    instance = None
+    
     def __init__(self):
         """Initialize the game engine and create the game window."""
+        if Game.instance is not None:
+            raise RuntimeError("Game instance already exists")
+        Game.instance = self
+        
         pygame.init()
         pygame.display.set_caption(WINDOW_TITLE)
         
@@ -67,6 +78,11 @@ class Game:
         
         # Create UI panels
         self.business_panel = BusinessPanel(self.ui_manager)
+        self.trading_panel = TradingPanel(self.ui_manager)
+        self.mediation_panel = MediationPanel(self.ui_manager)
+        
+        # Create camera offset
+        self.camera_offset = pygame.Vector2(0, 0)
         
         # Create tilemap
         self.tilemap = create_test_map()
@@ -110,6 +126,20 @@ class Game:
             price=1500.0
         )
         
+        # Create a test conflict
+        self.business_manager.create_conflict(
+            type=ConflictType.CONTRACT_BREACH,
+            description="Failed to deliver raw materials on time",
+            parties=[retail, manufacturing]
+        )
+        
+        # Create another test conflict
+        self.business_manager.create_conflict(
+            type=ConflictType.RESOURCE_DISPUTE,
+            description="Dispute over machinery maintenance costs",
+            parties=[manufacturing, retail]
+        )
+        
         # Show the retail business panel for testing
         self.business_panel.show(retail)
     
@@ -123,6 +153,7 @@ class Game:
             self.ui_manager.process_events(event)
             self.menu_manager.handle_event(event)
             self.business_panel.handle_event(event)
+            self.trading_panel.handle_event(event)
             
             # Handle keyboard input
             if event.type == pygame.KEYDOWN:
@@ -141,6 +172,21 @@ class Game:
                         # Show panel for first business (for testing)
                         first_business = next(iter(self.business_manager.businesses.values()))
                         self.business_panel.show(first_business)
+                elif event.key == pygame.K_t and self.state == GameState.PLAYING:
+                    # Show trading panel (for testing)
+                    if not self.trading_panel.visible:
+                        businesses = list(self.business_manager.businesses.values())
+                        if len(businesses) >= 2:
+                            self.trading_panel.show(businesses[0], businesses[1])
+                elif event.key == pygame.K_m and self.state == GameState.PLAYING:
+                    # Show mediation panel for first unresolved conflict (for testing)
+                    for business in self.business_manager.businesses.values():
+                        for conflict in business.conflicts:
+                            if not conflict.is_resolved:
+                                self.mediation_panel.show(conflict)
+                                break
+                        if self.mediation_panel.visible:
+                            break
     
     def update(self, delta_time: float):
         """Update game state.
@@ -167,11 +213,22 @@ class Game:
                 self.player.position = old_pos
                 self.player.rect.center = old_pos
             
+            # Update camera to follow player
+            target_x = self.player.position.x - WINDOW_WIDTH // 2
+            target_y = self.player.position.y - WINDOW_HEIGHT // 2
+            
+            # Clamp camera to map bounds
+            max_x = self.tilemap.width * TILE_SIZE - WINDOW_WIDTH
+            max_y = self.tilemap.height * TILE_SIZE - WINDOW_HEIGHT
+            
+            self.camera_offset.x = max(0, min(target_x, max_x))
+            self.camera_offset.y = max(0, min(target_y, max_y))
+            
             # Log room changes for debugging
             current_room = self.tilemap.get_room_at(self.player.position)
             if hasattr(self, '_last_room') and self._last_room != current_room:
                 if current_room:
-                    logger.debug(f"Entered room: {current_room}")
+                    logger.debug(f"Entered room: {current_room.name} ({current_room.room_type})")
                 else:
                     logger.debug("Left room")
             self._last_room = current_room
@@ -179,9 +236,13 @@ class Game:
             # Update business system
             self.business_manager.update(delta_time)
             
-            # Update business panel if visible
+            # Update UI panels
             if self.business_panel.visible:
                 self.business_panel.update_display()
+            if self.trading_panel.visible:
+                self.trading_panel.update_display()
+            if self.mediation_panel.visible:
+                self.mediation_panel.handle_event(pygame.event.Event(pygame.USEREVENT))
     
     def render(self):
         """Render the game state to the screen."""
@@ -190,11 +251,12 @@ class Game:
         
         # Only render game world when playing or paused
         if self.state in [GameState.PLAYING, GameState.PAUSED]:
-            # Draw the tilemap
-            self.tilemap.draw(self.screen)
+            # Draw the tilemap with camera offset
+            self.tilemap.draw(self.screen, (int(self.camera_offset.x), int(self.camera_offset.y)))
             
-            # Draw the player
-            self.player.draw(self.screen)
+            # Draw the player with camera offset
+            player_screen_pos = self.player.position - self.camera_offset
+            self.player.draw(self.screen, player_screen_pos)
             
             # Draw semi-transparent overlay when paused
             if self.state == GameState.PAUSED:

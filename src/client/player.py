@@ -85,18 +85,24 @@ class Player:
         # Update sprite animation
         self.sprite_manager.update(delta_time)
     
-    def draw(self, screen: pygame.Surface) -> None:
+    def draw(self, screen: pygame.Surface, screen_pos: pygame.Vector2) -> None:
         """Draw the player.
         
         Args:
             screen: Surface to draw on
+            screen_pos: Position on screen (camera-relative)
         """
         sprite = self.sprite_manager.get_current_sprite()
         if sprite:
-            screen.blit(sprite, self.rect)
+            screen.blit(sprite, (screen_pos.x - PLAYER_SIZE // 2, screen_pos.y - PLAYER_SIZE // 2))
         else:
             # Fallback to rectangle if sprite not found
-            pygame.draw.rect(screen, COLOR_BLACK, self.rect)
+            pygame.draw.rect(screen, COLOR_BLACK, pygame.Rect(
+                screen_pos.x - PLAYER_SIZE // 2,
+                screen_pos.y - PLAYER_SIZE // 2,
+                PLAYER_SIZE,
+                PLAYER_SIZE
+            ))
     
     def add_money(self, amount: float) -> None:
         """Add money to the player.

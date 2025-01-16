@@ -1,18 +1,27 @@
-"""Tilemap module for handling the game world.
+"""Tilemap module.
 
-This module manages the office environment using a tile-based system.
-It handles tile loading, rendering, and collision detection.
+This module handles the office environment's tile-based map system.
 """
 
+from dataclasses import dataclass
 from enum import Enum, auto
 from typing import Dict, List, Optional, Tuple
 import pygame
-from pygame.math import Vector2
 
-from shared.constants import TILE_SIZE, COLOR_WHITE, COLOR_BLACK, COLOR_GRAY
+from shared.constants import (
+    TILE_SIZE,
+    MAP_WIDTH,
+    MAP_HEIGHT,
+    COLOR_WHITE,
+    COLOR_BLACK,
+    COLOR_GRAY
+)
+from shared.logger import get_logger
+
+logger = get_logger(__name__)
 
 class TileType(Enum):
-    """Types of tiles available in the game."""
+    """Types of tiles in the office environment."""
     FLOOR = auto()
     WALL = auto()
     DOOR = auto()
@@ -20,103 +29,78 @@ class TileType(Enum):
     CHAIR = auto()
     PLANT = auto()
     WINDOW = auto()
-    EMPTY = auto()
+    CABINET = auto()
+    MEETING_TABLE = auto()
+    WATER_COOLER = auto()
+
+@dataclass
+class Room:
+    """Room in the office environment."""
+    name: str
+    x: int
+    y: int
+    width: int
+    height: int
+    room_type: str
 
 class Tile:
-    """A single tile in the game world.
+    """Single tile in the map."""
     
-    Attributes:
-        type: The type of tile
-        position: Position in the game world
-        sprite: Visual representation of the tile
-        collidable: Whether entities can collide with this tile
-    """
-    
-    def __init__(
-        self,
-        tile_type: TileType,
-        position: Vector2,
-        sprite_path: Optional[str] = None,
-        collidable: bool = False
-    ):
-        """Initialize the tile.
+    def __init__(self, type: TileType, position: Tuple[int, int]):
+        """Initialize a tile.
         
         Args:
-            tile_type: Type of tile
-            position: Position in world coordinates
-            sprite_path: Path to tile sprite image
-            collidable: Whether the tile has collision
+            type: Type of tile
+            position: Grid position (x, y)
         """
-        self.type = tile_type
+        self.type = type
         self.position = position
-        self.sprite = None
-        self.collidable = collidable
+        self.sprite: Optional[pygame.Surface] = None
+        self.is_collidable = type in {TileType.WALL, TileType.DESK, TileType.MEETING_TABLE, TileType.CABINET}
         
-        # Create rect for collision and rendering
-        self.rect = pygame.Rect(
-            position.x,
-            position.y,
-            TILE_SIZE,
-            TILE_SIZE
-        )
-        
-        # Load sprite if provided, otherwise use default colors
-        if sprite_path:
-            self._load_sprite(sprite_path)
+        # Create default colored rectangle
+        self.sprite = pygame.Surface((TILE_SIZE, TILE_SIZE))
+        self._set_default_color()
     
-    def _load_sprite(self, sprite_path: str) -> None:
-        """Load the tile sprite from file.
+    def _set_default_color(self) -> None:
+        """Set the default color based on tile type."""
+        if self.type == TileType.FLOOR:
+            self.sprite.fill((240, 240, 240))  # Light gray
+        elif self.type == TileType.WALL:
+            self.sprite.fill((100, 100, 100))  # Dark gray
+        elif self.type == TileType.DOOR:
+            self.sprite.fill((150, 75, 0))  # Brown
+        elif self.type == TileType.DESK:
+            self.sprite.fill((160, 110, 60))  # Light brown
+        elif self.type == TileType.CHAIR:
+            self.sprite.fill((80, 80, 80))  # Dark gray
+        elif self.type == TileType.PLANT:
+            self.sprite.fill((0, 150, 0))  # Green
+        elif self.type == TileType.WINDOW:
+            self.sprite.fill((200, 230, 255))  # Light blue
+        elif self.type == TileType.CABINET:
+            self.sprite.fill((120, 80, 40))  # Dark brown
+        elif self.type == TileType.MEETING_TABLE:
+            self.sprite.fill((180, 130, 80))  # Medium brown
+        elif self.type == TileType.WATER_COOLER:
+            self.sprite.fill((0, 150, 200))  # Blue
+    
+    def draw(self, screen: pygame.Surface, camera_offset: Tuple[int, int] = (0, 0)) -> None:
+        """Draw the tile.
         
         Args:
-            sprite_path: Path to sprite image
-        """
-        try:
-            self.sprite = pygame.image.load(sprite_path).convert_alpha()
-            self.sprite = pygame.transform.scale(self.sprite, (TILE_SIZE, TILE_SIZE))
-        except pygame.error as e:
-            print(f"Could not load tile sprite: {e}")
-    
-    def draw(self, screen: pygame.Surface) -> None:
-        """Draw the tile to the screen.
-        
-        Args:
-            screen: Pygame surface to draw on
+            screen: Surface to draw on
+            camera_offset: Camera offset (x, y)
         """
         if self.sprite:
-            screen.blit(self.sprite, self.rect)
-        else:
-            # Use default colors based on tile type
-            color = self._get_default_color()
-            pygame.draw.rect(screen, color, self.rect)
-    
-    def _get_default_color(self) -> Tuple[int, int, int]:
-        """Get the default color for this tile type.
-        
-        Returns:
-            RGB color tuple
-        """
-        colors = {
-            TileType.FLOOR: COLOR_WHITE,
-            TileType.WALL: COLOR_BLACK,
-            TileType.DOOR: COLOR_GRAY,
-            TileType.DESK: (139, 69, 19),  # Brown
-            TileType.CHAIR: (169, 169, 169),  # Dark gray
-            TileType.PLANT: (0, 100, 0),  # Dark green
-            TileType.WINDOW: (135, 206, 235),  # Sky blue
-            TileType.EMPTY: COLOR_WHITE
-        }
-        return colors.get(self.type, COLOR_WHITE)
+            x = self.position[0] * TILE_SIZE - camera_offset[0]
+            y = self.position[1] * TILE_SIZE - camera_offset[1]
+            screen.blit(self.sprite, (x, y))
 
 class TileMap:
-    """Manages the game world's tile-based environment.
+    """Map of tiles representing the office environment."""
     
-    Attributes:
-        width: Width of the map in tiles
-        height: Height of the map in tiles
-        tiles: 2D array of tiles
-    """
-    
-    def __init__(self, width: int, height: int):
+    def __init__(self, width: int = MAP_WIDTH, height: int = MAP_HEIGHT):
         """Initialize the tilemap.
         
         Args:
@@ -125,176 +109,198 @@ class TileMap:
         """
         self.width = width
         self.height = height
-        self.tiles: List[List[Optional[Tile]]] = [
-            [None for _ in range(width)] for _ in range(height)
-        ]
+        self.tiles: List[List[Optional[Tile]]] = [[None] * height for _ in range(width)]
+        self.rooms: List[Room] = []
         
-        # Dictionary to store room definitions
-        self.rooms: Dict[str, pygame.Rect] = {}
+        logger.info(f"Created tilemap: {width}x{height} tiles")
     
-    def set_tile(self, x: int, y: int, tile: Tile) -> None:
-        """Set a tile at the specified position.
+    def set_tile(self, x: int, y: int, type: TileType) -> None:
+        """Set a tile at the given position.
         
         Args:
-            x: X coordinate in tiles
-            y: Y coordinate in tiles
-            tile: Tile to place
+            x: X coordinate
+            y: Y coordinate
+            type: Tile type
         """
         if 0 <= x < self.width and 0 <= y < self.height:
-            self.tiles[y][x] = tile
+            self.tiles[x][y] = Tile(type, (x, y))
     
     def get_tile(self, x: int, y: int) -> Optional[Tile]:
-        """Get the tile at the specified position.
+        """Get the tile at the given position.
         
         Args:
-            x: X coordinate in tiles
-            y: Y coordinate in tiles
-            
+            x: X coordinate
+            y: Y coordinate
+        
         Returns:
             Tile at position or None if out of bounds
         """
         if 0 <= x < self.width and 0 <= y < self.height:
-            return self.tiles[y][x]
+            return self.tiles[x][y]
         return None
     
-    def add_room(self, name: str, rect: pygame.Rect) -> None:
-        """Define a room area in the map.
+    def add_room(self, name: str, x: int, y: int, width: int, height: int, room_type: str) -> None:
+        """Add a room definition.
         
         Args:
-            name: Unique room identifier
-            rect: Rectangle defining room boundaries
+            name: Room name
+            x: Room left position
+            y: Room top position
+            width: Room width in tiles
+            height: Room height in tiles
+            room_type: Type of room
         """
-        self.rooms[name] = rect
+        room = Room(name, x, y, width, height, room_type)
+        self.rooms.append(room)
+        logger.debug(f"Added room: {name} ({room_type})")
     
-    def get_room_at(self, position: Vector2) -> Optional[str]:
-        """Get the room name at the specified position.
+    def get_room_at(self, position: pygame.Vector2) -> Optional[Room]:
+        """Get the room at the given world position.
         
         Args:
-            position: Position to check
-            
+            position: World position
+        
         Returns:
-            Room name or None if not in a room
+            Room at position or None if not in a room
         """
-        for name, rect in self.rooms.items():
-            if rect.collidepoint(position):
-                return name
+        tile_x = int(position.x / TILE_SIZE)
+        tile_y = int(position.y / TILE_SIZE)
+        
+        for room in self.rooms:
+            if (room.x <= tile_x < room.x + room.width and 
+                room.y <= tile_y < room.y + room.height):
+                return room
         return None
     
     def check_collision(self, rect: pygame.Rect) -> bool:
         """Check if a rectangle collides with any collidable tiles.
         
         Args:
-            rect: Rectangle to check collision for
-            
-        Returns:
-            True if collision detected, False otherwise
-        """
-        # Get tile coordinates that the rect could be colliding with
-        start_x = max(0, int(rect.left // TILE_SIZE))
-        end_x = min(self.width, int(rect.right // TILE_SIZE) + 1)
-        start_y = max(0, int(rect.top // TILE_SIZE))
-        end_y = min(self.height, int(rect.bottom // TILE_SIZE) + 1)
+            rect: Rectangle to check
         
-        # Check each potentially colliding tile
-        for y in range(start_y, end_y):
-            for x in range(start_x, end_x):
-                tile = self.tiles[y][x]
-                if tile and tile.collidable and tile.rect.colliderect(rect):
-                    return True
+        Returns:
+            True if collision detected
+        """
+        # Convert rect to tile coordinates
+        start_x = max(0, int(rect.left / TILE_SIZE))
+        end_x = min(self.width - 1, int(rect.right / TILE_SIZE))
+        start_y = max(0, int(rect.top / TILE_SIZE))
+        end_y = min(self.height - 1, int(rect.bottom / TILE_SIZE))
+        
+        # Check each tile in the rect's area
+        for x in range(start_x, end_x + 1):
+            for y in range(start_y, end_y + 1):
+                tile = self.tiles[x][y]
+                if tile and tile.is_collidable:
+                    tile_rect = pygame.Rect(
+                        x * TILE_SIZE,
+                        y * TILE_SIZE,
+                        TILE_SIZE,
+                        TILE_SIZE
+                    )
+                    if rect.colliderect(tile_rect):
+                        return True
         return False
     
-    def draw(self, screen: pygame.Surface) -> None:
-        """Draw all tiles to the screen.
+    def draw(self, screen: pygame.Surface, camera_offset: Tuple[int, int] = (0, 0)) -> None:
+        """Draw the tilemap.
         
         Args:
-            screen: Pygame surface to draw on
+            screen: Surface to draw on
+            camera_offset: Camera offset (x, y)
         """
-        for y in range(self.height):
-            for x in range(self.width):
-                tile = self.tiles[y][x]
+        # Only draw tiles that are visible on screen
+        start_x = max(0, int(camera_offset[0] / TILE_SIZE))
+        end_x = min(self.width, int((camera_offset[0] + screen.get_width()) / TILE_SIZE) + 1)
+        start_y = max(0, int(camera_offset[1] / TILE_SIZE))
+        end_y = min(self.height, int((camera_offset[1] + screen.get_height()) / TILE_SIZE) + 1)
+        
+        for x in range(start_x, end_x):
+            for y in range(start_y, end_y):
+                tile = self.tiles[x][y]
                 if tile:
-                    tile.draw(screen)
+                    tile.draw(screen, camera_offset)
 
 def create_test_map() -> TileMap:
-    """Create a corporate office layout.
+    """Create a test office map.
     
     Returns:
-        TileMap with a detailed office environment
+        Created tilemap
     """
-    # Create a 30x20 tile map for a larger office
-    tilemap = TileMap(30, 20)
+    tilemap = TileMap()
     
-    # Fill entire map with floor tiles
-    for y in range(tilemap.height):
-        for x in range(tilemap.width):
-            tile = Tile(
-                TileType.FLOOR,
-                Vector2(x * TILE_SIZE, y * TILE_SIZE)
-            )
-            tilemap.set_tile(x, y, tile)
+    # Fill with floor tiles
+    for x in range(MAP_WIDTH):
+        for y in range(MAP_HEIGHT):
+            tilemap.set_tile(x, y, TileType.FLOOR)
     
     # Add outer walls
-    for x in range(tilemap.width):
-        tilemap.set_tile(x, 0, Tile(TileType.WALL, Vector2(x * TILE_SIZE, 0), collidable=True))
-        tilemap.set_tile(x, tilemap.height-1, Tile(TileType.WALL, Vector2(x * TILE_SIZE, (tilemap.height-1) * TILE_SIZE), collidable=True))
-    for y in range(tilemap.height):
-        tilemap.set_tile(0, y, Tile(TileType.WALL, Vector2(0, y * TILE_SIZE), collidable=True))
-        tilemap.set_tile(tilemap.width-1, y, Tile(TileType.WALL, Vector2((tilemap.width-1) * TILE_SIZE, y * TILE_SIZE), collidable=True))
+    for x in range(MAP_WIDTH):
+        tilemap.set_tile(x, 0, TileType.WALL)
+        tilemap.set_tile(x, MAP_HEIGHT - 1, TileType.WALL)
+    for y in range(MAP_HEIGHT):
+        tilemap.set_tile(0, y, TileType.WALL)
+        tilemap.set_tile(MAP_WIDTH - 1, y, TileType.WALL)
     
-    # Create main corridor (horizontal)
-    corridor_y = tilemap.height // 2
+    # Add reception area
+    tilemap.add_room("Reception", 2, 2, 8, 6, "reception")
+    for x in range(2, 10):
+        tilemap.set_tile(x, 2, TileType.WALL)
+        tilemap.set_tile(x, 7, TileType.WALL)
+    for y in range(2, 8):
+        tilemap.set_tile(2, y, TileType.WALL)
+        tilemap.set_tile(9, y, TileType.WALL)
+    tilemap.set_tile(5, 2, TileType.DOOR)
+    tilemap.set_tile(4, 4, TileType.DESK)
+    tilemap.set_tile(4, 5, TileType.CHAIR)
     
-    # Add walls for the corridor
-    for x in range(1, tilemap.width-1):
-        if x not in [7, 15, 22]:  # Door positions
-            tilemap.set_tile(x, corridor_y-3, Tile(TileType.WALL, Vector2(x * TILE_SIZE, (corridor_y-3) * TILE_SIZE), collidable=True))
-            tilemap.set_tile(x, corridor_y+3, Tile(TileType.WALL, Vector2(x * TILE_SIZE, (corridor_y+3) * TILE_SIZE), collidable=True))
+    # Add meeting room
+    tilemap.add_room("Meeting Room", 12, 2, 10, 8, "meeting")
+    for x in range(12, 22):
+        tilemap.set_tile(x, 2, TileType.WALL)
+        tilemap.set_tile(x, 9, TileType.WALL)
+    for y in range(2, 10):
+        tilemap.set_tile(12, y, TileType.WALL)
+        tilemap.set_tile(21, y, TileType.WALL)
+    tilemap.set_tile(12, 5, TileType.DOOR)
+    for x in range(14, 20, 2):
+        tilemap.set_tile(x, 4, TileType.MEETING_TABLE)
+        tilemap.set_tile(x, 7, TileType.CHAIR)
     
-    # Add doors
-    door_positions = [(7, corridor_y-3), (15, corridor_y-3), (22, corridor_y-3),
-                     (7, corridor_y+3), (15, corridor_y+3), (22, corridor_y+3)]
-    for x, y in door_positions:
-        tilemap.set_tile(x, y, Tile(TileType.DOOR, Vector2(x * TILE_SIZE, y * TILE_SIZE)))
+    # Add offices
+    for i in range(3):
+        x = 2 + i * 8
+        tilemap.add_room(f"Office {i+1}", x, 12, 6, 6, "office")
+        for dx in range(6):
+            tilemap.set_tile(x + dx, 12, TileType.WALL)
+            tilemap.set_tile(x + dx, 17, TileType.WALL)
+        for dy in range(6):
+            tilemap.set_tile(x, 12 + dy, TileType.WALL)
+            tilemap.set_tile(x + 5, 12 + dy, TileType.WALL)
+        tilemap.set_tile(x + 2, 12, TileType.DOOR)
+        tilemap.set_tile(x + 2, 14, TileType.DESK)
+        tilemap.set_tile(x + 2, 15, TileType.CHAIR)
+        tilemap.set_tile(x + 4, 14, TileType.CABINET)
     
-    # Create offices
-    office_layouts = [
-        # Upper offices
-        (2, 2, 5, 7), (9, 2, 13, 7), (16, 2, 20, 7), (23, 2, 27, 7),
-        # Lower offices
-        (2, 13, 5, 17), (9, 13, 13, 17), (16, 13, 20, 17), (23, 13, 27, 17)
-    ]
+    # Add break room
+    tilemap.add_room("Break Room", 28, 12, 8, 8, "break")
+    for x in range(28, 36):
+        tilemap.set_tile(x, 12, TileType.WALL)
+        tilemap.set_tile(x, 19, TileType.WALL)
+    for y in range(12, 20):
+        tilemap.set_tile(28, y, TileType.WALL)
+        tilemap.set_tile(35, y, TileType.WALL)
+    tilemap.set_tile(28, 15, TileType.DOOR)
+    tilemap.set_tile(30, 14, TileType.DESK)
+    tilemap.set_tile(33, 14, TileType.WATER_COOLER)
+    for x in range(30, 34, 2):
+        tilemap.set_tile(x, 17, TileType.CHAIR)
     
-    for start_x, start_y, end_x, end_y in office_layouts:
-        # Add desks and chairs
-        desk_x = (start_x + end_x) // 2
-        desk_y = (start_y + end_y) // 2
-        
-        tilemap.set_tile(desk_x, desk_y, Tile(TileType.DESK, Vector2(desk_x * TILE_SIZE, desk_y * TILE_SIZE), collidable=True))
-        tilemap.set_tile(desk_x, desk_y+1, Tile(TileType.CHAIR, Vector2(desk_x * TILE_SIZE, (desk_y+1) * TILE_SIZE)))
-        
-        # Add plants for decoration
-        tilemap.set_tile(start_x+1, start_y+1, Tile(TileType.PLANT, Vector2((start_x+1) * TILE_SIZE, (start_y+1) * TILE_SIZE), collidable=True))
-        
-        # Add windows on outer walls
-        if start_y == 2:  # Upper offices
-            tilemap.set_tile(desk_x, start_y, Tile(TileType.WINDOW, Vector2(desk_x * TILE_SIZE, start_y * TILE_SIZE)))
-        if start_y == 13:  # Lower offices
-            tilemap.set_tile(desk_x, end_y, Tile(TileType.WINDOW, Vector2(desk_x * TILE_SIZE, end_y * TILE_SIZE)))
+    # Add some decoration
+    for x in range(2, MAP_WIDTH - 2, 6):
+        tilemap.set_tile(x, 9, TileType.PLANT)
+    for y in range(2, MAP_HEIGHT - 2, 6):
+        tilemap.set_tile(25, y, TileType.WINDOW)
     
-    # Define rooms
-    room_definitions = [
-        ("office_1", pygame.Rect(2*TILE_SIZE, 2*TILE_SIZE, 5*TILE_SIZE, 5*TILE_SIZE)),
-        ("office_2", pygame.Rect(9*TILE_SIZE, 2*TILE_SIZE, 5*TILE_SIZE, 5*TILE_SIZE)),
-        ("office_3", pygame.Rect(16*TILE_SIZE, 2*TILE_SIZE, 5*TILE_SIZE, 5*TILE_SIZE)),
-        ("office_4", pygame.Rect(23*TILE_SIZE, 2*TILE_SIZE, 5*TILE_SIZE, 5*TILE_SIZE)),
-        ("office_5", pygame.Rect(2*TILE_SIZE, 13*TILE_SIZE, 5*TILE_SIZE, 5*TILE_SIZE)),
-        ("office_6", pygame.Rect(9*TILE_SIZE, 13*TILE_SIZE, 5*TILE_SIZE, 5*TILE_SIZE)),
-        ("office_7", pygame.Rect(16*TILE_SIZE, 13*TILE_SIZE, 5*TILE_SIZE, 5*TILE_SIZE)),
-        ("office_8", pygame.Rect(23*TILE_SIZE, 13*TILE_SIZE, 5*TILE_SIZE, 5*TILE_SIZE)),
-        ("main_corridor", pygame.Rect(TILE_SIZE, (corridor_y-2)*TILE_SIZE, (tilemap.width-2)*TILE_SIZE, 5*TILE_SIZE))
-    ]
-    
-    for name, rect in room_definitions:
-        tilemap.add_room(name, rect)
-    
+    logger.info("Created test office map")
     return tilemap 
