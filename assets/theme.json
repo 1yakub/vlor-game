@@ -29,7 +29,7 @@
       "dark_bg": null
     },
     "font": {
-      "name": "fira_code",
+      "name": "arial",
       "size": "36",
       "bold": "1",
       "italic": "0"
@@ -37,10 +37,11 @@
   },
   "label": {
     "colours": {
-      "dark_bg": null
+      "dark_bg": null,
+      "normal_text": "#c5cbd8"
     },
     "font": {
-      "name": "fira_code",
+      "name": "arial",
       "size": "14",
       "bold": "0",
       "italic": "0"

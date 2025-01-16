@@ -21,30 +21,24 @@ from shared.logger import get_logger
 logger = get_logger(__name__)
 
 class MenuManager:
-    """Manages game menus and UI screens.
-    
-    Attributes:
-        ui_manager: pygame_gui UIManager instance
-        current_state: Current game state
-        elements: Dictionary of UI elements by state
-    """
+    """Manages game menus and UI screens."""
     
     def __init__(self, ui_manager: pygame_gui.UIManager):
-        """Initialize the menu manager.
-        
-        Args:
-            ui_manager: pygame_gui UIManager instance
-        """
+        """Initialize the menu manager."""
         self.ui_manager = ui_manager
         self.current_state = GameState.MENU
-        self.elements = {}
+        self.elements = {
+            GameState.MENU: [],
+            GameState.PLAYING: [],
+            GameState.PAUSED: []
+        }
         
         # Create UI elements for each state
         self._create_main_menu()
         self._create_pause_menu()
         self._create_game_hud()
         
-        # Show initial state
+        # Initially hide all elements except menu
         self.show_state(GameState.MENU)
     
     def _create_main_menu(self) -> None:
@@ -53,7 +47,7 @@ class MenuManager:
         
         # Title
         title = UILabel(
-            relative_rect=pygame.Rect((0, 50), (WINDOW_WIDTH, 50)),
+            relative_rect=pygame.Rect((center_x - 200, 50), (400, 50)),
             text="Varygen: Lords of Resolution",
             manager=self.ui_manager,
             object_id="#title_label"
@@ -104,11 +98,6 @@ class MenuManager:
     def _create_pause_menu(self) -> None:
         """Create pause menu UI elements."""
         center_x = WINDOW_WIDTH // 2
-        
-        # Semi-transparent background
-        background = pygame.Surface((WINDOW_WIDTH, WINDOW_HEIGHT))
-        background.fill((0, 0, 0))
-        background.set_alpha(128)
         
         # Buttons
         resume_button = UIButton(
@@ -164,11 +153,9 @@ class MenuManager:
         ]
     
     def show_state(self, state: GameState) -> None:
-        """Show UI elements for the given state.
+        """Show UI elements for the given state."""
+        logger.debug(f"Showing UI state: {state}")
         
-        Args:
-            state: Game state to show UI for
-        """
         # Hide all elements
         for elements in self.elements.values():
             for element in elements:
@@ -182,27 +169,20 @@ class MenuManager:
         self.current_state = state
     
     def handle_event(self, event: pygame.event.Event) -> None:
-        """Handle UI events.
-        
-        Args:
-            event: Pygame event to handle
-        """
+        """Handle UI events."""
         if event.type == pygame_gui.UI_BUTTON_PRESSED:
-            if event.ui_element in self.elements[self.current_state]:
-                if event.ui_element.text == "Start Game":
-                    self.show_state(GameState.PLAYING)
-                elif event.ui_element.text == "Resume Game":
-                    self.show_state(GameState.PLAYING)
-                elif event.ui_element.text == "Quit Game":
-                    pygame.event.post(pygame.event.Event(pygame.QUIT))
-                elif event.ui_element.text == "Quit to Menu":
-                    self.show_state(GameState.MENU)
+            button_text = event.ui_element.text
+            logger.debug(f"Button pressed: {button_text}")
+            
+            if button_text == "Start Game":
+                self.show_state(GameState.PLAYING)
+            elif button_text == "Resume Game":
+                self.show_state(GameState.PLAYING)
+            elif button_text == "Quit Game":
+                pygame.event.post(pygame.event.Event(pygame.QUIT))
+            elif button_text == "Quit to Menu":
+                self.show_state(GameState.MENU)
     
     def update(self, delta_time: float) -> None:
-        """Update UI elements.
-        
-        Args:
-            delta_time: Time elapsed since last update
-        """
-        # Update UI manager
-        self.ui_manager.update(delta_time) 
+        """Update UI elements."""
+        pass  # UI manager updates are handled in Game class 

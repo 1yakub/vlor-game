@@ -40,14 +40,25 @@ class Game:
         
         # Create UI manager with theme
         theme_path = ASSET_DIR / "theme.json"
-        self.ui_manager = pygame_gui.UIManager(
-            (WINDOW_WIDTH, WINDOW_HEIGHT),
-            theme_path if theme_path.exists() else None
-        )
-        self.menu_manager = MenuManager(self.ui_manager)
+        try:
+            if theme_path.exists():
+                logger.info(f"Loading UI theme from {theme_path}")
+                self.ui_manager = pygame_gui.UIManager(
+                    (WINDOW_WIDTH, WINDOW_HEIGHT),
+                    str(theme_path)
+                )
+            else:
+                logger.warning(f"Theme file not found: {theme_path}, using default theme")
+                self.ui_manager = pygame_gui.UIManager((WINDOW_WIDTH, WINDOW_HEIGHT))
+        except Exception as e:
+            logger.error(f"Error loading theme: {e}, using default theme")
+            self.ui_manager = pygame_gui.UIManager((WINDOW_WIDTH, WINDOW_HEIGHT))
         
         # Game state
         self.state = GameState.MENU
+        
+        # Create menu manager
+        self.menu_manager = MenuManager(self.ui_manager)
         
         # Create tilemap
         self.tilemap = create_test_map()
@@ -125,6 +136,13 @@ class Game:
             
             # Draw the player
             self.player.draw(self.screen)
+            
+            # Draw semi-transparent overlay when paused
+            if self.state == GameState.PAUSED:
+                overlay = pygame.Surface((WINDOW_WIDTH, WINDOW_HEIGHT))
+                overlay.fill((0, 0, 0))
+                overlay.set_alpha(128)
+                self.screen.blit(overlay, (0, 0))
         
         # Draw UI
         self.ui_manager.draw_ui(self.screen)
