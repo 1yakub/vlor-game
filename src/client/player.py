@@ -1,4 +1,7 @@
-"""Player module for handling the player entity."""
+"""Player module.
+
+This module handles the player character and its interactions.
+"""
 
 import pygame
 from pygame.math import Vector2
@@ -7,83 +10,67 @@ from shared.constants import (
     PLAYER_SIZE,
     PLAYER_SPEED,
     COLOR_BLACK,
-    PlayerRole
+    PlayerRole,
+    STARTING_MONEY
 )
+from shared.logger import get_logger
 from client.sprites import SpriteManager, Direction, AnimationState
 
+logger = get_logger(__name__)
+
 class Player:
-    """Player entity class.
+    """Player class representing the user's character."""
     
-    Attributes:
-        position: Current position in world coordinates
-        velocity: Current movement velocity
-        rect: Collision rectangle
-        role: Player's role in the game
-        direction: Current facing direction
-        state: Current animation state
-        sprite_manager: Handles sprite animations
-    """
-    
-    def __init__(
-        self,
-        position: Vector2,
-        role: PlayerRole = PlayerRole.MEDIATOR_RUPOK,
-        color: tuple[int, int, int] = COLOR_BLACK
-    ):
+    def __init__(self, position: Vector2, name: str = "Player"):
         """Initialize the player.
         
         Args:
             position: Starting position
-            role: Player's role
-            color: Fallback color if sprites fail to load
+            name: Player name
         """
+        self.name = name
         self.position = position
         self.velocity = Vector2(0, 0)
-        self.role = role
-        self.color = color
+        self.money = STARTING_MONEY
         
-        # Create collision rectangle
-        self.rect = pygame.Rect(
-            position.x - PLAYER_SIZE // 2,
-            position.y - PLAYER_SIZE // 2,
-            PLAYER_SIZE,
-            PLAYER_SIZE
-        )
-        
-        # Animation state
-        self.direction = Direction.DOWN
-        self.state = AnimationState.IDLE
+        # Create sprite manager
         self.sprite_manager = SpriteManager()
+        
+        # Create collision rect
+        self.rect = pygame.Rect(0, 0, PLAYER_SIZE, PLAYER_SIZE)
+        self.rect.center = self.position
+        
+        logger.info(f"Created player: {self.name}")
     
-    def handle_input(self, keys: dict) -> None:
-        """Handle keyboard input for movement.
+    def handle_input(self, keys: pygame.key.ScancodeWrapper) -> None:
+        """Handle keyboard input.
         
         Args:
-            keys: Dictionary of keyboard state
+            keys: Pressed keys
         """
         # Reset velocity
         self.velocity = Vector2(0, 0)
         
-        # Handle movement keys and update direction
-        if keys[pygame.K_LEFT] or keys[pygame.K_a]:
-            self.velocity.x = -PLAYER_SPEED
-            self.direction = Direction.LEFT
-        if keys[pygame.K_RIGHT] or keys[pygame.K_d]:
-            self.velocity.x = PLAYER_SPEED
-            self.direction = Direction.RIGHT
-        if keys[pygame.K_UP] or keys[pygame.K_w]:
+        # Movement
+        if keys[pygame.K_w] or keys[pygame.K_UP]:
             self.velocity.y = -PLAYER_SPEED
-            self.direction = Direction.UP
-        if keys[pygame.K_DOWN] or keys[pygame.K_s]:
+            self.sprite_manager.set_direction(Direction.UP)
+        elif keys[pygame.K_s] or keys[pygame.K_DOWN]:
             self.velocity.y = PLAYER_SPEED
-            self.direction = Direction.DOWN
-            
-        # Normalize diagonal movement
+            self.sprite_manager.set_direction(Direction.DOWN)
+        
+        if keys[pygame.K_a] or keys[pygame.K_LEFT]:
+            self.velocity.x = -PLAYER_SPEED
+            self.sprite_manager.set_direction(Direction.LEFT)
+        elif keys[pygame.K_d] or keys[pygame.K_RIGHT]:
+            self.velocity.x = PLAYER_SPEED
+            self.sprite_manager.set_direction(Direction.RIGHT)
+        
+        # Update animation state
         if self.velocity.length() > 0:
-            self.velocity = self.velocity.normalize() * PLAYER_SPEED
-            self.state = AnimationState.WALKING
+            self.sprite_manager.set_state(AnimationState.WALKING)
         else:
-            self.state = AnimationState.IDLE
+            self.sprite_manager.set_state(AnimationState.IDLE)
     
     def update(self, delta_time: float) -> None:
         """Update player state.
@@ -91,11 +78,12 @@ class Player:
         Args:
             delta_time: Time elapsed since last update
         """
-        # Update position based on velocity
+        # Update position
         self.position += self.velocity * delta_time
-        
-        # Update collision rect
         self.rect.center = self.position
+        
+        # Update sprite animation
+        self.sprite_manager.update(delta_time)
     
     def draw(self, screen: pygame.Surface) -> None:
         """Draw the player.
@@ -103,14 +91,34 @@ class Player:
         Args:
             screen: Surface to draw on
         """
-        # Get current animation frame
-        sprite = self.sprite_manager.get_sprite_frame(
-            self.role,
-            self.direction,
-            self.state,
-            pygame.time.get_ticks() / 1000.0
-        )
+        sprite = self.sprite_manager.get_current_sprite()
+        if sprite:
+            screen.blit(sprite, self.rect)
+        else:
+            # Fallback to rectangle if sprite not found
+            pygame.draw.rect(screen, COLOR_BLACK, self.rect)
+    
+    def add_money(self, amount: float) -> None:
+        """Add money to the player.
         
-        # Draw sprite centered on position
-        sprite_rect = sprite.get_rect(center=self.position)
-        screen.blit(sprite, sprite_rect) 
+        Args:
+            amount: Amount to add
+        """
+        self.money += amount
+        logger.debug(f"{self.name} added ${amount:,.2f}")
+    
+    def remove_money(self, amount: float) -> bool:
+        """Remove money from the player.
+        
+        Args:
+            amount: Amount to remove
+        
+        Returns:
+            True if money was removed, False if insufficient funds
+        """
+        if self.money < amount:
+            return False
+        
+        self.money -= amount
+        logger.debug(f"{self.name} removed ${amount:,.2f}")
+        return True 
